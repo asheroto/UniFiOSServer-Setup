@@ -15,7 +15,7 @@
 .PROJECTURI https://github.com/asheroto/UniFiOSServer-Setup
 
 .RELEASENOTES
-[Version 1.1.0] - Add -Install parameter to download and launch the UniFi OS Server installer automatically. Move nested virtualization warning to end of output instead of exiting early.
+[Version 1.1.0] - Add -Install parameter to download and install UniFi OS Server automatically. WSL2 and nested virtualization checks no longer exit early; warnings are shown at the end. Add section headers to output.
 [Version 1.0.1] - Enable WSL2 automatically if not already installed. Warn if UniFi Network Application is running and prompt user to export settings before continuing.
 [Version 1.0.0] - Initial release.
 
@@ -331,12 +331,16 @@ $step++
 
 if (-not $serverInstalled) {
     Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
-    Write-Host "Download and install UniFi OS Server for " -NoNewline -ForegroundColor White
+    Write-Host "Install UniFi OS Server for " -NoNewline -ForegroundColor White
     Write-Host "all users" -NoNewline -ForegroundColor Cyan
     Write-Host " (choose " -NoNewline -ForegroundColor White
     Write-Host "Program Files" -NoNewline -ForegroundColor Cyan
-    Write-Host ", not AppData):" -ForegroundColor White
-    Write-Host "     https://www.ui.com/download" -ForegroundColor Cyan
+    Write-Host ", not AppData)." -ForegroundColor White
+    Write-Host "     Option A - Run this script with " -NoNewline -ForegroundColor White
+    Write-Host "-Install" -NoNewline -ForegroundColor Cyan
+    Write-Host " to download and install automatically." -ForegroundColor White
+    Write-Host "     Option B - Download manually: " -NoNewline -ForegroundColor White
+    Write-Host "https://www.ui.com/download" -ForegroundColor Cyan
     Write-Host ""
     $step++
 }

@@ -66,6 +66,14 @@ Run the script in an elevated PowerShell session -- no prompts required. When it
 
 The scheduled task will start UniFi OS Server under `svc_unifi` automatically on all future reboots.
 
+## Parameters
+
+| Parameter  | Description |
+|------------|-------------|
+| `-Install` | Fetch the latest UniFi OS Server release from Ubiquiti, download it (~1.3 GB), and launch the installer automatically. |
+| `-Version` | Print the script version and exit. |
+| `-Help`    | Show full help and exit. |
+
 ## Notes
 
 - If `svc_unifi` already exists, the script resets its password
