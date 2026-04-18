@@ -10,7 +10,14 @@
 
 UniFi OS Server must run under the same user account it was initially configured in -- this is a Windows limitation. On Linux/Docker it runs as a system service and has no such constraint.
 
-This script creates a dedicated local service account (`svc_unifi`), grants it the **Log On as a Batch Job** right, and registers a scheduled task to launch UniFi OS Server 30 seconds after boot under that account.
+The script does the following:
+
+- Verifies Windows Server 2022 or higher is installed
+- Warns if the old UniFi Network Application is running, and prompts you to export your settings before continuing
+- Enables WSL2 if not already installed (a reboot is required afterward before UniFi OS Server can be set up)
+- Creates a local service account (`svc_unifi`), or resets its password if it already exists
+- Grants the account the **Log On as a Batch Job** right
+- Registers a scheduled task to launch UniFi OS Server 30 seconds after boot under that account
 
 ## Quick Run
 

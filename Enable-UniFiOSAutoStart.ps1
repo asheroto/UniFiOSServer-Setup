@@ -2,7 +2,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.0.0
+.VERSION 1.0.1
 
 .GUID ea50c320-7d51-4b4a-843b-1a8a16d3769b
 
@@ -15,6 +15,7 @@
 .PROJECTURI https://github.com/asheroto/UniFiOSServer-AutoStart
 
 .RELEASENOTES
+[Version 1.0.1] - Enable WSL2 automatically if not already installed. Warn if UniFi Network Application is running and prompt user to export settings before continuing.
 [Version 1.0.0] - Initial release.
 
 #>
@@ -27,7 +28,7 @@
 .EXAMPLE
     Enable-UniFiOSAutoStart.ps1
 .NOTES
-    Version      : 1.0.0
+    Version      : 1.0.1
     Created by   : asheroto
 .LINK
     https://github.com/asheroto/UniFiOSServer-AutoStart
@@ -39,7 +40,7 @@ param (
 )
 
 # Version
-$CurrentVersion = '1.0.0'
+$CurrentVersion = '1.0.1'
 
 # Display version if -Version is specified
 if ($Version.IsPresent) {
@@ -71,6 +72,46 @@ if ([int]$os.BuildNumber -lt 20348) {
     exit 1
 }
 
+# ===== UniFi Network Application Check =====
+$unifiSvc  = Get-Service -Name "UniFi" -ErrorAction SilentlyContinue
+$unifiProc = Get-Process -Name "UniFi" -ErrorAction SilentlyContinue
+
+if (($unifiSvc -and $unifiSvc.Status -eq 'Running') -or $unifiProc) {
+    Write-Host ""
+    Write-Host "  WARNING: The UniFi Network Application appears to be running." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Before continuing, you must export your settings from the old" -ForegroundColor White
+    Write-Host "  application so you can restore them in UniFi OS Server:" -ForegroundColor White
+    Write-Host ""
+    Write-Host "    Settings > Backup > Download Backup" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  Once exported, stop and disable the old application:" -ForegroundColor White
+    Write-Host ""
+    Write-Host "    Stop-Service -Name 'UniFi' -Force" -ForegroundColor Cyan
+    Write-Host "    Set-Service  -Name 'UniFi' -StartupType Disabled" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  Then re-run this script to continue setup." -ForegroundColor White
+    Write-Host ""
+    exit 1
+}
+
+# ===== WSL2 Check =====
+$wslFeature    = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
+$vmFeature     = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
+$wsl2WasEnabled = $false
+
+if ($wslFeature.State -ne 'Enabled' -or $vmFeature.State -ne 'Enabled') {
+    Write-Host "WSL2 is not enabled. Enabling required Windows features..."
+    if ($wslFeature.State -ne 'Enabled') {
+        Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -NoRestart | Out-Null
+    }
+    if ($vmFeature.State -ne 'Enabled') {
+        Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -NoRestart | Out-Null
+    }
+    Write-Host "WSL2 features enabled."
+    $wsl2WasEnabled = $true
+}
+
 # ===== Config =====
 $ExePath   = "C:\Program Files\UniFi OS Server\UniFi OS Server.exe"
 $TaskName  = "UniFi OS Server"
@@ -79,7 +120,9 @@ $SvcUser   = "svc_unifi"
 # ===== Create Service Account =====
 $chars    = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
 $password = -join ((1..32) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
-$secPwd   = ConvertTo-SecureString $password -AsPlainText -Force
+$secPwd   = [System.Security.SecureString]::new()
+foreach ($c in $password.ToCharArray()) { $secPwd.AppendChar($c) }
+$secPwd.MakeReadOnly()
 
 $ExistingUser = Get-LocalUser -Name $SvcUser -ErrorAction SilentlyContinue
 if (-not $ExistingUser) {
@@ -223,16 +266,29 @@ Write-Host ""
 Write-Host "  Before the scheduled task can run, UniFi OS Server must be" -ForegroundColor White
 Write-Host "  launched and initially configured under the service account." -ForegroundColor White
 Write-Host ""
-Write-Host "  1. " -NoNewline -ForegroundColor Yellow
+
+$step = 1
+if ($wsl2WasEnabled) {
+    Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
+    Write-Host "Reboot the machine to finish enabling WSL2, then continue the steps below." -ForegroundColor White
+    Write-Host ""
+    $step++
+}
+
+Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
 Write-Host "Log off the current session." -ForegroundColor White
 Write-Host ""
-Write-Host "  2. " -NoNewline -ForegroundColor Yellow
+$step++
+
+Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
 Write-Host "Log on as:  " -NoNewline -ForegroundColor White
 Write-Host "$env:COMPUTERNAME\$SvcUser" -ForegroundColor Cyan
 Write-Host "     Password:  " -NoNewline -ForegroundColor White
 Write-Host $password -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  3. " -NoNewline -ForegroundColor Yellow
+$step++
+
+Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
 Write-Host "Download and install UniFi OS Server for " -NoNewline -ForegroundColor White
 Write-Host "all users" -NoNewline -ForegroundColor Cyan
 Write-Host " (choose " -NoNewline -ForegroundColor White
@@ -240,10 +296,14 @@ Write-Host "Program Files" -NoNewline -ForegroundColor Cyan
 Write-Host ", not AppData):" -ForegroundColor White
 Write-Host "     https://www.ui.com/download" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  4. " -NoNewline -ForegroundColor Yellow
+$step++
+
+Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
 Write-Host "Launch UniFi OS Server and complete initial setup." -ForegroundColor White
 Write-Host ""
-Write-Host "  5. " -NoNewline -ForegroundColor Yellow
+$step++
+
+Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
 Write-Host "Log off $SvcUser." -ForegroundColor White
 Write-Host ""
 Write-Host "  The scheduled task will start UniFi OS Server under $SvcUser" -ForegroundColor Gray
