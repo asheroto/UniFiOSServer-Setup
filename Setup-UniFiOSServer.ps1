@@ -15,7 +15,7 @@
 .PROJECTURI https://github.com/asheroto/UniFiOSServer-Setup
 
 .RELEASENOTES
-[Version 1.1.0] - Add -Install parameter to download and launch the UniFi OS Server installer automatically.
+[Version 1.1.0] - Add -Install parameter to download and launch the UniFi OS Server installer automatically. Move nested virtualization warning to end of output instead of exiting early.
 [Version 1.0.1] - Enable WSL2 automatically if not already installed. Warn if UniFi Network Application is running and prompt user to export settings before continuing.
 [Version 1.0.0] - Initial release.
 
@@ -113,29 +113,7 @@ if ($cs.Manufacturer -like 'Microsoft*' -and $cs.Model -like '*Virtual*') { $hyp
 elseif ($cs.Manufacturer -like 'VMware*')                                  { $hypervisor = 'VMware' }
 elseif ($cs.Manufacturer -like 'innotek*' -or $cs.Model -like '*VirtualBox*') { $hypervisor = 'VirtualBox' }
 
-if ($hypervisor -and -not $cpu.VirtualizationFirmwareEnabled) {
-    Write-Host ""
-    Write-Host "  WARNING: This machine is a $hypervisor VM and nested virtualization is not enabled." -ForegroundColor Yellow
-    Write-Host "  WSL2 requires nested virtualization. Shut down this VM and run" -ForegroundColor White
-    Write-Host "  the following on the host, then start the VM again:" -ForegroundColor White
-    Write-Host ""
-    switch ($hypervisor) {
-        'Hyper-V' {
-            Write-Host '    Set-VMProcessor -VMName "YourVMName" -ExposeVirtualizationExtensions $true' -ForegroundColor Cyan
-        }
-        'VMware' {
-            Write-Host "    Option 1 - Add to the VM's .vmx file:" -ForegroundColor White
-            Write-Host '      vhv.enable = "TRUE"' -ForegroundColor Cyan
-            Write-Host ""
-            Write-Host "    Option 2 - VMware UI: VM Settings > Processors > Enable Intel VT-x/AMD-V" -ForegroundColor White
-        }
-        'VirtualBox' {
-            Write-Host '    VBoxManage modifyvm "YourVMName" --nested-hw-virt on' -ForegroundColor Cyan
-        }
-    }
-    Write-Host ""
-    exit 1
-}
+$nestedVirtMissing = $hypervisor -and -not $cpu.VirtualizationFirmwareEnabled
 
 # ===== WSL2 Check =====
 $wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
@@ -381,3 +359,24 @@ Write-Host "  automatically on all future reboots." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  ================================================================" -ForegroundColor Yellow
 Write-Host ""
+
+if ($nestedVirtMissing) {
+    Write-Host "  WARNING: This machine is a $hypervisor VM and nested virtualization is not enabled." -ForegroundColor Yellow
+    Write-Host "  WSL2 requires nested virtualization. Shut down this VM and enable it on the host:" -ForegroundColor White
+    Write-Host ""
+    switch ($hypervisor) {
+        'Hyper-V' {
+            Write-Host '    Set-VMProcessor -VMName "YourVMName" -ExposeVirtualizationExtensions $true' -ForegroundColor Cyan
+        }
+        'VMware' {
+            Write-Host "    Option 1 - Add to the VM's .vmx file:" -ForegroundColor White
+            Write-Host '      vhv.enable = "TRUE"' -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "    Option 2 - VMware UI: VM Settings > Processors > Enable Intel VT-x/AMD-V" -ForegroundColor White
+        }
+        'VirtualBox' {
+            Write-Host '    VBoxManage modifyvm "YourVMName" --nested-hw-virt on' -ForegroundColor Cyan
+        }
+    }
+    Write-Host ""
+}
