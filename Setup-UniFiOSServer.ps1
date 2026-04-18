@@ -62,6 +62,12 @@ if ($PSBoundParameters.ContainsKey('Verbose') -and $PSBoundParameters['Verbose']
     Get-Host
 }
 
+Write-Host ""
+Write-Host "  Setup-UniFiOSServer v$CurrentVersion" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Checking prerequisites..." -ForegroundColor White
+Write-Host ""
+
 # ===== OS Version Check =====
 # Desktop: Windows 10 1903+ (build 18362), Windows 11 (build 22000+)
 # Server:  Windows Server 2022+ (build 20348)
@@ -119,18 +125,7 @@ $nestedVirtMissing = $hypervisor -and -not $cpu.VirtualizationFirmwareEnabled
 $wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
 $vmPlatform = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
 
-if ($wslFeature.State -ne 'Enabled' -or $vmPlatform.State -ne 'Enabled') {
-    Write-Host ""
-    Write-Host "  WSL2 is not installed." -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "  Run the following command, then reboot:" -ForegroundColor White
-    Write-Host ""
-    Write-Host "    wsl --install --no-distribution" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "  After rebooting, install UniFi OS Server, then re-run this script to complete setup." -ForegroundColor White
-    Write-Host ""
-    exit 1
-}
+$wsl2Missing = $wslFeature.State -ne 'Enabled' -or $vmPlatform.State -ne 'Enabled'
 
 # ===== Config =====
 $ExePath   = "C:\Program Files\UniFi OS Server\UniFi OS Server.exe"
@@ -359,6 +354,15 @@ Write-Host "  automatically on all future reboots." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  ================================================================" -ForegroundColor Yellow
 Write-Host ""
+
+if ($wsl2Missing) {
+    Write-Host "  WARNING: WSL2 is not installed. Run the following command, then reboot:" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "    wsl --install --no-distribution" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  After rebooting, install UniFi OS Server, then re-run this script." -ForegroundColor White
+    Write-Host ""
+}
 
 if ($nestedVirtMissing) {
     Write-Host "  WARNING: This machine is a $hypervisor VM and nested virtualization is not enabled." -ForegroundColor Yellow
