@@ -44,43 +44,69 @@ Open an elevated PowerShell session (Run as Administrator). There are two ways t
 
 For best results, run this before installing UniFi OS Server. If it is already installed, run with `-TaskOnly` instead.
 
-### Step 1 - Run setup as Administrator
+### One-liner
+
+Open an elevated PowerShell session (Run as Administrator) and run each step in order.
+
+**Step 1** - Create service account and register startup task (run as Administrator):
 
 ```powershell
 &([ScriptBlock]::Create((irm asheroto.com/unifios))) -Step1
-# or
+```
+
+Creates `svc_unifi`, grants it the required rights, and registers the startup task (disabled). **Save the password printed to the console** - it is not stored anywhere.
+
+**Step 2** - Log off and log on as `svc_unifi` using the password shown. Use `.\svc_unifi` (dot-backslash) at the login screen - it is a local account.
+
+**Step 3** - Install UniFi OS Server (run as `svc_unifi`):
+
+```powershell
+&([ScriptBlock]::Create((irm asheroto.com/unifios))) -Step2
+```
+
+Downloads and installs UniFi OS Server (~1.3 GB) with WSL2. Click OK on any WSL2 dialogs that appear. Alternatively, install manually from https://www.ui.com/download - choose **all users** and `Program Files`, not `AppData`.
+
+**Step 4** - Launch UniFi OS Server and finish the initial configuration while logged in as `svc_unifi`. Do not launch it from any other account.
+
+A dialog may appear asking to install WSL2 -- click OK and allow it to complete. If prompted to reboot, click OK, then run the next step.
+
+**Step 5** - Enable the startup task (run as Administrator):
+
+```powershell
+&([ScriptBlock]::Create((irm asheroto.com/unifios))) -Step3
+```
+
+---
+
+### Local
+
+Download [Setup-UniFiOSServer.ps1](https://github.com/asheroto/UniFiOSServer-Setup/releases/latest/download/Setup-UniFiOSServer.ps1) from [Releases](https://github.com/asheroto/UniFiOSServer-Setup/releases), then open an elevated PowerShell session (Run as Administrator) and run each step in order.
+
+**Step 1** - Create service account and register startup task (run as Administrator):
+
+```powershell
 .\Setup-UniFiOSServer.ps1 -Step1
 ```
 
 Creates `svc_unifi`, grants it the required rights, and registers the startup task (disabled). **Save the password printed to the console** - it is not stored anywhere.
 
-### Step 2 - Log on as svc_unifi
+**Step 2** - Log off and log on as `svc_unifi` using the password shown. Use `.\svc_unifi` (dot-backslash) at the login screen - it is a local account.
 
-Log off and log on as `svc_unifi` using the password shown. Use `.\svc_unifi` (dot-backslash) at the login screen - it is a local account.
-
-### Step 3 - Install UniFi OS Server
+**Step 3** - Install UniFi OS Server (run as `svc_unifi`):
 
 ```powershell
-&([ScriptBlock]::Create((irm asheroto.com/unifios))) -Step2
-# or
 .\Setup-UniFiOSServer.ps1 -Step2
 ```
 
 Downloads and installs UniFi OS Server (~1.3 GB) with WSL2. Click OK on any WSL2 dialogs that appear. Alternatively, install manually from https://www.ui.com/download - choose **all users** and `Program Files`, not `AppData`.
 
-### Step 4 - Complete initial setup
+**Step 4** - Launch UniFi OS Server and finish the initial configuration while logged in as `svc_unifi`. Do not launch it from any other account.
 
-Launch UniFi OS Server and finish the initial configuration while logged in as `svc_unifi`. Do not launch it from any other account.
+A dialog may appear asking to install WSL2 -- click OK and allow it to complete. If prompted to reboot, click OK, then run the next step.
 
-A dialog may appear asking to install WSL2 -- click OK and allow it to complete. If prompted to reboot, click OK, then run `-Step3`.
-
-### Step 5 - Enable the startup task
-
-Run as Administrator:
+**Step 5** - Enable the startup task (run as Administrator):
 
 ```powershell
-&([ScriptBlock]::Create((irm asheroto.com/unifios))) -Step3
-# or
 .\Setup-UniFiOSServer.ps1 -Step3
 ```
 
