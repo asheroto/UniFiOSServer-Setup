@@ -2,7 +2,7 @@
 
 <#PSScriptInfo
 
-.VERSION 1.0.1
+.VERSION 1.1.0
 
 .GUID ea50c320-7d51-4b4a-843b-1a8a16d3769b
 
@@ -12,9 +12,10 @@
 
 .TAGS PowerShell UniFi UniFiOS Server Windows boot startup scheduled-task service-account
 
-.PROJECTURI https://github.com/asheroto/UniFiOSServer-AutoStart
+.PROJECTURI https://github.com/asheroto/UniFiOSServer-Setup
 
 .RELEASENOTES
+[Version 1.1.0] - Add -Install parameter to download and launch the UniFi OS Server installer automatically.
 [Version 1.0.1] - Enable WSL2 automatically if not already installed. Warn if UniFi Network Application is running and prompt user to export settings before continuing.
 [Version 1.0.0] - Initial release.
 
@@ -22,25 +23,26 @@
 
 <#
 .SYNOPSIS
-    Configures UniFi OS Server to start automatically on boot under a dedicated service account.
+    Sets up UniFi OS Server on Windows with a dedicated service account and auto-start on boot.
 .DESCRIPTION
-    Creates a local service account (svc_unifi), grants it the Log On as a Batch Job right, and registers a scheduled task to launch UniFi OS Server 30 seconds after boot. This works around the Windows requirement that UniFi OS Server run under the same user account it was initially configured in.
+    Checks prerequisites (OS version, WSL2, nested virtualization), warns if the old UniFi Network Application is running, creates a local service account (svc_unifi), grants it the Log On as a Batch Job right, and registers a scheduled task to launch UniFi OS Server 30 seconds after boot.
 .EXAMPLE
-    Enable-UniFiOSAutoStart.ps1
+    Setup-UniFiOSServer.ps1
 .NOTES
-    Version      : 1.0.1
+    Version      : 1.1.0
     Created by   : asheroto
 .LINK
-    https://github.com/asheroto/UniFiOSServer-AutoStart
+    https://github.com/asheroto/UniFiOSServer-Setup
 #>
 [CmdletBinding()]
 param (
     [switch]$Version,
-    [switch]$Help
+    [switch]$Help,
+    [switch]$Install
 )
 
 # Version
-$CurrentVersion = '1.0.1'
+$CurrentVersion = '1.1.0'
 
 # Display version if -Version is specified
 if ($Version.IsPresent) {
@@ -61,15 +63,22 @@ if ($PSBoundParameters.ContainsKey('Verbose') -and $PSBoundParameters['Verbose']
 }
 
 # ===== OS Version Check =====
+# Desktop: Windows 10 1903+ (build 18362), Windows 11 (build 22000+)
+# Server:  Windows Server 2022+ (build 20348)
 $os = Get-CimInstance Win32_OperatingSystem
+$build = [int]$os.BuildNumber
 if ($os.ProductType -eq 1) {
-    Write-Error "This script requires Windows Server. Desktop editions are not supported."
-    exit 1
-}
-# Windows Server 2022 = build 20348
-if ([int]$os.BuildNumber -lt 20348) {
-    Write-Error "Windows Server 2022 or higher is required (WSL2 is not supported on older versions). Detected: $($os.Caption) (build $($os.BuildNumber))"
-    exit 1
+    # Desktop
+    if ($build -lt 18362) {
+        Write-Error "Windows 10 1903 or higher is required. Detected: $($os.Caption) (build $build)"
+        exit 1
+    }
+} else {
+    # Server
+    if ($build -lt 20348) {
+        Write-Error "Windows Server 2022 or higher is required. Detected: $($os.Caption) (build $build)"
+        exit 1
+    }
 }
 
 # ===== UniFi Network Application Check =====
@@ -95,21 +104,54 @@ if (($unifiSvc -and $unifiSvc.Status -eq 'Running') -or $unifiProc) {
     exit 1
 }
 
-# ===== WSL2 Check =====
-$wslFeature    = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
-$vmFeature     = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
-$wsl2WasEnabled = $false
+# ===== VM / Nested Virtualization Check =====
+$cs  = Get-CimInstance Win32_ComputerSystem
+$cpu = Get-CimInstance Win32_Processor
 
-if ($wslFeature.State -ne 'Enabled' -or $vmFeature.State -ne 'Enabled') {
-    Write-Host "WSL2 is not enabled. Enabling required Windows features..."
-    if ($wslFeature.State -ne 'Enabled') {
-        Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -NoRestart | Out-Null
+$hypervisor = $null
+if ($cs.Manufacturer -like 'Microsoft*' -and $cs.Model -like '*Virtual*') { $hypervisor = 'Hyper-V' }
+elseif ($cs.Manufacturer -like 'VMware*')                                  { $hypervisor = 'VMware' }
+elseif ($cs.Manufacturer -like 'innotek*' -or $cs.Model -like '*VirtualBox*') { $hypervisor = 'VirtualBox' }
+
+if ($hypervisor -and -not $cpu.VirtualizationFirmwareEnabled) {
+    Write-Host ""
+    Write-Host "  WARNING: This machine is a $hypervisor VM and nested virtualization is not enabled." -ForegroundColor Yellow
+    Write-Host "  WSL2 requires nested virtualization. Shut down this VM and run" -ForegroundColor White
+    Write-Host "  the following on the host, then start the VM again:" -ForegroundColor White
+    Write-Host ""
+    switch ($hypervisor) {
+        'Hyper-V' {
+            Write-Host '    Set-VMProcessor -VMName "YourVMName" -ExposeVirtualizationExtensions $true' -ForegroundColor Cyan
+        }
+        'VMware' {
+            Write-Host "    Option 1 - Add to the VM's .vmx file:" -ForegroundColor White
+            Write-Host '      vhv.enable = "TRUE"' -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "    Option 2 - VMware UI: VM Settings > Processors > Enable Intel VT-x/AMD-V" -ForegroundColor White
+        }
+        'VirtualBox' {
+            Write-Host '    VBoxManage modifyvm "YourVMName" --nested-hw-virt on' -ForegroundColor Cyan
+        }
     }
-    if ($vmFeature.State -ne 'Enabled') {
-        Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -NoRestart | Out-Null
-    }
-    Write-Host "WSL2 features enabled."
-    $wsl2WasEnabled = $true
+    Write-Host ""
+    exit 1
+}
+
+# ===== WSL2 Check =====
+$wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
+$vmPlatform = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
+
+if ($wslFeature.State -ne 'Enabled' -or $vmPlatform.State -ne 'Enabled') {
+    Write-Host ""
+    Write-Host "  WSL2 is not installed." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Run the following command, then reboot:" -ForegroundColor White
+    Write-Host ""
+    Write-Host "    wsl --install --no-distribution" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  After rebooting, install UniFi OS Server, then re-run this script to complete setup." -ForegroundColor White
+    Write-Host ""
+    exit 1
 }
 
 # ===== Config =====
@@ -260,6 +302,39 @@ Write-Host "' registered under " -NoNewline -ForegroundColor Green
 Write-Host $SvcUser -NoNewline -ForegroundColor Cyan
 Write-Host "." -ForegroundColor Green
 
+# ===== Install UniFi OS Server =====
+$serverInstalled = $false
+if ($Install) {
+    Write-Host ""
+    Write-Host "Fetching UniFi OS Server download URL..." -ForegroundColor White
+    try {
+        $apiUri  = 'https://fw-update.ubnt.com/api/firmware-latest?filter=eq~~product~~unifi-os-server&filter=eq~~channel~~release'
+        $raw     = Invoke-WebRequest -Uri $apiUri -UseBasicParsing
+        $dlUrl   = [regex]::Match($raw.Content, 'https://fw-download\.ubnt\.com/data/unifi-os-server/[^"]+windows-x64-msi[^"]+\.exe').Value
+
+        if (-not $dlUrl) {
+            Write-Error "Could not find UniFi OS Server download URL. Download manually from https://www.ui.com/download"
+        } else {
+            $installer = Join-Path $env:TEMP "UniFiOSServer-Setup.exe"
+            Write-Host "Downloading UniFi OS Server (~1.3 GB)..." -ForegroundColor White
+            Start-BitsTransfer -Source $dlUrl -Destination $installer
+
+            Write-Host "Launching installer..." -ForegroundColor White
+            $proc = Start-Process -FilePath $installer -ArgumentList '/AllUsers' -Wait -PassThru
+            Remove-Item $installer -Force -ErrorAction SilentlyContinue
+
+            if ($proc.ExitCode -eq 0) {
+                Write-Host "UniFi OS Server installed successfully." -ForegroundColor Green
+                $serverInstalled = $true
+            } else {
+                Write-Warning "Installer exited with code $($proc.ExitCode) -- verify the installation completed."
+            }
+        }
+    } catch {
+        Write-Error "Failed to download or install UniFi OS Server: $_"
+    }
+}
+
 Write-Host ""
 Write-Host "  =========  NEXT STEPS  ========================================" -ForegroundColor Yellow
 Write-Host ""
@@ -268,13 +343,6 @@ Write-Host "  launched and initially configured under the service account." -For
 Write-Host ""
 
 $step = 1
-if ($wsl2WasEnabled) {
-    Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
-    Write-Host "Reboot the machine to finish enabling WSL2, then continue the steps below." -ForegroundColor White
-    Write-Host ""
-    $step++
-}
-
 Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
 Write-Host "Log off the current session." -ForegroundColor White
 Write-Host ""
@@ -288,15 +356,17 @@ Write-Host $password -ForegroundColor Cyan
 Write-Host ""
 $step++
 
-Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
-Write-Host "Download and install UniFi OS Server for " -NoNewline -ForegroundColor White
-Write-Host "all users" -NoNewline -ForegroundColor Cyan
-Write-Host " (choose " -NoNewline -ForegroundColor White
-Write-Host "Program Files" -NoNewline -ForegroundColor Cyan
-Write-Host ", not AppData):" -ForegroundColor White
-Write-Host "     https://www.ui.com/download" -ForegroundColor Cyan
-Write-Host ""
-$step++
+if (-not $serverInstalled) {
+    Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
+    Write-Host "Download and install UniFi OS Server for " -NoNewline -ForegroundColor White
+    Write-Host "all users" -NoNewline -ForegroundColor Cyan
+    Write-Host " (choose " -NoNewline -ForegroundColor White
+    Write-Host "Program Files" -NoNewline -ForegroundColor Cyan
+    Write-Host ", not AppData):" -ForegroundColor White
+    Write-Host "     https://www.ui.com/download" -ForegroundColor Cyan
+    Write-Host ""
+    $step++
+}
 
 Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
 Write-Host "Launch UniFi OS Server and complete initial setup." -ForegroundColor White
