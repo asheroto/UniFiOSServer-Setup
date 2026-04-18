@@ -59,7 +59,7 @@ if ($Help) {
 function Write-Section {
     param([string]$Title)
     Write-Host ""
-    Write-Host "  -- $Title" -ForegroundColor DarkGray
+    Write-Host "  -- $Title" -ForegroundColor Gray
     Write-Host ""
 }
 
