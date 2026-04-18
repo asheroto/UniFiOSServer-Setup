@@ -10,7 +10,12 @@
 
 [UniFi OS Server](https://www.ui.com/download) is Ubiquiti's self-hosted controller platform, replacing the legacy UniFi Network Application. It runs UniFi OS in a WSL2 container on Windows, giving you the same experience as a physical UniFi console (such as a Dream Machine or Cloud Gateway) without dedicated hardware.
 
-Running it on Windows requires a bit of setup: unlike Linux or Docker, where it runs as a system service under a dedicated account, Windows ties the WSL2 environment to the user profile it was first configured in. That means it must always launch as that same user -- otherwise the container won't start correctly. This script handles all of that automatically by creating a dedicated local service account (`svc_unifi`) and registering a scheduled task to start UniFi OS Server at boot under that account.
+Running it on Windows requires a bit of setup: unlike Linux or Docker, where it runs as a system service under a dedicated account, Windows ties the WSL2 environment to the user profile it was first configured in. That means it must always launch as that same user -- otherwise the container won't start correctly.
+
+This script automates the entire process: it creates a dedicated local service account, configures the required rights, installs UniFi OS Server, and registers a scheduled task so it starts automatically at boot.
+
+<details>
+<summary>How it works</summary>
 
 The script does the following:
 
@@ -20,6 +25,8 @@ The script does the following:
 - Creates a local service account (`svc_unifi`), grants it the **Log On as a Batch Job** right, and registers a scheduled task to launch UniFi OS Server 30 seconds after boot
 - Downloads and installs UniFi OS Server (~1.3 GB) with WSL2 via `-Step2`
 - Supports existing installations via `-TaskOnly` -- creates the service account and task without reinstalling
+
+</details>
 
 ## Quick Run
 
