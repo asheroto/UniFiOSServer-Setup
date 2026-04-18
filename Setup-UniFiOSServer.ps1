@@ -2,7 +2,7 @@
 
 <#PSScriptInfo
 
-.VERSION 2.0.1
+.VERSION 2.0.2
 
 .GUID ea50c320-7d51-4b4a-843b-1a8a16d3769b
 
@@ -15,6 +15,7 @@
 .PROJECTURI https://github.com/asheroto/UniFiOSServer-Setup
 
 .RELEASENOTES
+[Version 2.0.2] - Wrap script body in Main function; use return instead of exit so the PowerShell window stays open. Remove Read-Host pauses.
 [Version 2.0.1] - Pause before exit on usage so terminal window stays open.
 [Version 2.0.0] - Add -Step1/-Step2/-Step3 flow. Add -TaskOnly for setups where UniFi OS Server is already installed. Add -Username to override the service account name. Add -Interactive for non-silent installer UI. Startup task is created disabled and enabled via -Step3. Moved desktop shortcut to svc_unifi after install. Password limited to 3 special characters. svc_unifi added to Users and Administrators groups. Fix re-run error when LsaPolicy type already exists. Nested virtualization check non-blocking with warning at end. Added section headers to output.
 [Version 1.0.1] - Warn if WSL2 is not installed and provide instructions. Warn if UniFi Network Application is running and prompt user to export settings before continuing.
@@ -30,7 +31,7 @@
 .EXAMPLE
     Setup-UniFiOSServer.ps1
 .NOTES
-    Version      : 2.0.1
+    Version      : 2.0.2
     Created by   : asheroto
 .LINK
     https://github.com/asheroto/UniFiOSServer-Setup
@@ -48,21 +49,9 @@ param (
 )
 
 # Version
-$CurrentVersion = '2.0.1'
+$CurrentVersion = '2.0.2'
 $SvcUser        = 'svc_unifi'
 $TaskName       = 'UniFi OS Server'
-
-# Display version if -Version is specified
-if ($Version.IsPresent) {
-    $CurrentVersion
-    exit 0
-}
-
-# Display full help if -Help is specified
-if ($Help) {
-    Get-Help -Name $MyInvocation.MyCommand.Source -Full
-    exit 0
-}
 
 function Write-Section {
     param([string]$Title)
@@ -109,6 +98,20 @@ function Write-NestedVirtWarning {
     Write-Host ""
 }
 
+function Main {
+
+# Display version if -Version is specified
+if ($Version.IsPresent) {
+    $CurrentVersion
+    return
+}
+
+# Display full help if -Help is specified
+if ($Help) {
+    Get-Help -Name $PSCommandPath -Full
+    return
+}
+
 # Display $PSVersionTable and Get-Host if -Verbose is specified
 if ($PSBoundParameters.ContainsKey('Verbose') -and $PSBoundParameters['Verbose']) {
     $PSVersionTable
@@ -125,7 +128,7 @@ if ($currentIdentity.IsSystem) {
     Write-Host "  UniFi OS Server requires a real user context to function correctly." -ForegroundColor White
     Write-Host "  Run this script from an interactive session as a local Administrator." -ForegroundColor White
     Write-Host ""
-    exit 1
+    return
 }
 
 if (-not [Environment]::UserInteractive) {
@@ -134,14 +137,14 @@ if (-not [Environment]::UserInteractive) {
     Write-Host "  UniFi OS Server requires user interaction during setup and will not" -ForegroundColor White
     Write-Host "  function correctly when run from a non-interactive context." -ForegroundColor White
     Write-Host ""
-    exit 1
+    return
 }
 
 if ($Step3) {
     $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     if (-not $task) {
         Write-Host "  ERROR: Scheduled task '$TaskName' not found. Run the script without parameters first." -ForegroundColor Red
-        exit 1
+        return
     }
     Enable-ScheduledTask -TaskName $TaskName | Out-Null
     Write-Host ""
@@ -158,8 +161,7 @@ if ($Step3) {
     Write-Host "  After rebooting, allow a few minutes for UniFi OS Server to" -ForegroundColor Gray
     Write-Host "  fully start before attempting to access the web interface." -ForegroundColor Gray
     Write-Host ""
-    Read-Host "  Press Enter to exit"
-    exit 0
+    return
 }
 
 if ($env:USERNAME -eq $SvcUser -and -not $Step2 -and -not $TaskOnly) {
@@ -169,7 +171,7 @@ if ($env:USERNAME -eq $SvcUser -and -not $Step2 -and -not $TaskOnly) {
     Write-Host ""
     Write-Host "    .\Setup-UniFiOSServer.ps1 -Step2" -ForegroundColor Cyan
     Write-Host ""
-    exit 1
+    return
 }
 
 if ($Step2) {
@@ -182,7 +184,7 @@ if ($Step2) {
         Write-Host ""
         Write-Host "  If you forgot the password, reset it or run -Step1 again." -ForegroundColor White
         Write-Host ""
-        exit 1
+        return
     }
     $vmInfo2 = Get-HypervisorInfo
     Write-Section "Install UniFi OS Server"
@@ -193,7 +195,7 @@ if ($Step2) {
 
         if (-not $dlUrl) {
             Write-Error "Could not find UniFi OS Server download URL. Download manually from https://www.ui.com/download"
-            exit 1
+            return
         }
 
         $installer = Join-Path $env:TEMP "UniFiOSServer-Setup.exe"
@@ -277,7 +279,7 @@ if ($Step2) {
     } catch {
         Write-Error "Failed to download or install UniFi OS Server: $_"
     }
-    exit 0
+    return
 }
 
 if (-not $Step1 -and -not $TaskOnly) {
@@ -303,8 +305,7 @@ if (-not $Step1 -and -not $TaskOnly) {
     Write-Host "    -SetPassword  Prompt for a custom password for the service account." -ForegroundColor Cyan
     Write-Host "                  If omitted, a random password is generated." -ForegroundColor Gray
     Write-Host ""
-    Read-Host "  Press Enter to exit"
-    exit 0
+    return
 }
 
 if ($Step1) {
@@ -318,13 +319,13 @@ if ($os.ProductType -eq 1) {
     # Desktop
     if ($build -lt 18362) {
         Write-Error "Windows 10 1903 or higher is required. Detected: $($os.Caption) (build $build)"
-        exit 1
+        return
     }
 } else {
     # Server
     if ($build -lt 20348) {
         Write-Error "Windows Server 2022 or higher is required. Detected: $($os.Caption) (build $build)"
-        exit 1
+        return
     }
 }
 
@@ -348,7 +349,7 @@ if (($unifiSvc -and $unifiSvc.Status -eq 'Running') -or $unifiProc) {
     Write-Host ""
     Write-Host "  Then re-run this script to continue setup." -ForegroundColor White
     Write-Host ""
-    exit 1
+    return
 }
 
 $vmInfo = Get-HypervisorInfo
@@ -365,7 +366,7 @@ if ($TaskOnly) {
     if (-not $secCred) {
         Write-Host ""
         Write-Host "  ERROR: No credentials provided. Exiting." -ForegroundColor Red
-        exit 1
+        return
     }
     $SvcUser  = $secCred.UserName -replace '^.*\\', ''
     $secPwd   = $secCred.Password
@@ -378,7 +379,7 @@ if ($TaskOnly) {
         if (-not $secCred) {
             Write-Host ""
             Write-Host "  ERROR: No credentials provided. Exiting." -ForegroundColor Red
-            exit 1
+            return
         }
         $secPwd  = $secCred.Password
         $password = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
@@ -413,7 +414,7 @@ if ($TaskOnly) {
         if (-not $secCred) {
             Write-Host ""
             Write-Host "  ERROR: No credentials provided. Exiting." -ForegroundColor Red
-            exit 1
+            return
         }
         $secPwd  = $secCred.Password
         $password = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
@@ -623,3 +624,7 @@ if ($TaskOnly) {
     Write-Host "  ================================================================" -ForegroundColor Yellow
     Write-Host ""
 }
+
+} # end function Main
+
+Main
