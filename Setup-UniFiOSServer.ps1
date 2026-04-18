@@ -68,7 +68,7 @@ Write-Host ""
 Write-Host "  Checking prerequisites..." -ForegroundColor White
 Write-Host ""
 
-# ===== OS Version Check =====
+# -- OS Version Check -----------------------------------------------------------
 # Desktop: Windows 10 1903+ (build 18362), Windows 11 (build 22000+)
 # Server:  Windows Server 2022+ (build 20348)
 $os = Get-CimInstance Win32_OperatingSystem
@@ -87,7 +87,7 @@ if ($os.ProductType -eq 1) {
     }
 }
 
-# ===== UniFi Network Application Check =====
+# -- UniFi Network Application Check -------------------------------------------
 $unifiSvc  = Get-Service -Name "UniFi" -ErrorAction SilentlyContinue
 $unifiProc = Get-Process -Name "UniFi" -ErrorAction SilentlyContinue
 
@@ -110,7 +110,7 @@ if (($unifiSvc -and $unifiSvc.Status -eq 'Running') -or $unifiProc) {
     exit 1
 }
 
-# ===== VM / Nested Virtualization Check =====
+# -- Nested Virtualization Check ------------------------------------------------
 $cs  = Get-CimInstance Win32_ComputerSystem
 $cpu = Get-CimInstance Win32_Processor
 
@@ -121,18 +121,18 @@ elseif ($cs.Manufacturer -like 'innotek*' -or $cs.Model -like '*VirtualBox*') { 
 
 $nestedVirtMissing = $hypervisor -and -not $cpu.VirtualizationFirmwareEnabled
 
-# ===== WSL2 Check =====
+# -- WSL2 Check -----------------------------------------------------------------
 $wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
 $vmPlatform = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
 
 $wsl2Missing = $wslFeature.State -ne 'Enabled' -or $vmPlatform.State -ne 'Enabled'
 
-# ===== Config =====
+# -- Config ---------------------------------------------------------------------
 $ExePath   = "C:\Program Files\UniFi OS Server\UniFi OS Server.exe"
 $TaskName  = "UniFi OS Server"
 $SvcUser   = "svc_unifi"
 
-# ===== Create Service Account =====
+# -- Create Service Account -----------------------------------------------------
 $chars    = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
 $password = -join ((1..32) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
 $secPwd   = [System.Security.SecureString]::new()
@@ -153,7 +153,7 @@ if (-not $ExistingUser) {
     Set-LocalUser -Name $SvcUser -Password $secPwd
 }
 
-# ===== Grant Log On As a Batch Job =====
+# -- Grant Log On As a Batch Job ------------------------------------------------
 # LSA P/Invoke is used instead of secedit because it modifies only this specific right without exporting and re-importing the entire security policy.
 Add-Type @'
 using System;
@@ -238,27 +238,23 @@ public class LsaPolicy {
 Write-Host "Granting SeBatchLogonRight to $SvcUser"
 [LsaPolicy]::GrantRight("$env:COMPUTERNAME\$SvcUser", "SeBatchLogonRight")
 
-# ===== Action =====
+# -- Scheduled Task -------------------------------------------------------------
 $Action = New-ScheduledTaskAction -Execute $ExePath -WorkingDirectory (Split-Path $ExePath)
 
-# ===== Trigger =====
 $Trigger = New-ScheduledTaskTrigger -AtStartup
 $Trigger.Delay = "PT30S"
 
-# ===== Settings =====
 $Settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
     -StartWhenAvailable `
     -ExecutionTimeLimit ([TimeSpan]::Zero)
 
-# ===== Remove Existing Task =====
 if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
     Write-Host "Removing existing task: $TaskName"
     Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
 }
 
-# ===== Register Task =====
 Register-ScheduledTask `
     -TaskName $TaskName `
     -Action $Action `
@@ -275,7 +271,7 @@ Write-Host "' registered under " -NoNewline -ForegroundColor Green
 Write-Host $SvcUser -NoNewline -ForegroundColor Cyan
 Write-Host "." -ForegroundColor Green
 
-# ===== Install UniFi OS Server =====
+# -- Install UniFi OS Server ----------------------------------------------------
 $serverInstalled = $false
 if ($Install) {
     Write-Host ""
