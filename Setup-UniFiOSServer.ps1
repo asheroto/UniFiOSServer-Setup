@@ -2,7 +2,7 @@
 
 <#PSScriptInfo
 
-.VERSION 2.0.0
+.VERSION 2.0.1
 
 .GUID ea50c320-7d51-4b4a-843b-1a8a16d3769b
 
@@ -15,6 +15,7 @@
 .PROJECTURI https://github.com/asheroto/UniFiOSServer-Setup
 
 .RELEASENOTES
+[Version 2.0.1] - Pause before exit on usage so terminal window stays open.
 [Version 2.0.0] - Add -Step1/-Step2/-Step3 flow. Add -TaskOnly for setups where UniFi OS Server is already installed. Add -Username to override the service account name. Add -Interactive for non-silent installer UI. Startup task is created disabled and enabled via -Step3. Moved desktop shortcut to svc_unifi after install. Password limited to 3 special characters. svc_unifi added to Users and Administrators groups. Fix re-run error when LsaPolicy type already exists. Nested virtualization check non-blocking with warning at end. Added section headers to output.
 [Version 1.0.1] - Warn if WSL2 is not installed and provide instructions. Warn if UniFi Network Application is running and prompt user to export settings before continuing.
 [Version 1.0.0] - Initial release.
@@ -29,7 +30,7 @@
 .EXAMPLE
     Setup-UniFiOSServer.ps1
 .NOTES
-    Version      : 2.0.0
+    Version      : 2.0.1
     Created by   : asheroto
 .LINK
     https://github.com/asheroto/UniFiOSServer-Setup
@@ -47,7 +48,7 @@ param (
 )
 
 # Version
-$CurrentVersion = '2.0.0'
+$CurrentVersion = '2.0.1'
 $SvcUser        = 'svc_unifi'
 $TaskName       = 'UniFi OS Server'
 
@@ -157,6 +158,7 @@ if ($Step3) {
     Write-Host "  After rebooting, allow a few minutes for UniFi OS Server to" -ForegroundColor Gray
     Write-Host "  fully start before attempting to access the web interface." -ForegroundColor Gray
     Write-Host ""
+    Read-Host "  Press Enter to exit"
     exit 0
 }
 
@@ -301,6 +303,7 @@ if (-not $Step1 -and -not $TaskOnly) {
     Write-Host "    -SetPassword  Prompt for a custom password for the service account." -ForegroundColor Cyan
     Write-Host "                  If omitted, a random password is generated." -ForegroundColor Gray
     Write-Host ""
+    Read-Host "  Press Enter to exit"
     exit 0
 }
 
