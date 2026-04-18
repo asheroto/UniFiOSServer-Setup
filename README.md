@@ -14,13 +14,21 @@ This script creates a dedicated local service account (`svc_unifi`), grants it t
 
 ## Quick Run
 
-Open an elevated PowerShell session (Run as Administrator) and run:
+Open an elevated PowerShell session (Run as Administrator). There are three ways to run the script: using `irm` with the short URL, using `irm` with the full release URL, or downloading and running locally.
+
+**Method 1** - `irm` short URL (recommended):
 
 ```powershell
 irm asheroto.com/UniFiOS | iex
 ```
 
-Alternatively, download the latest [Enable-UniFiOSAutoStart.ps1](https://github.com/asheroto/UniFiOSServer-AutoStart/releases/latest/download/Enable-UniFiOSAutoStart.ps1) from [Releases](https://github.com/asheroto/UniFiOSServer-AutoStart/releases) and run it locally:
+**Method 2** - `irm` full release URL:
+
+```powershell
+irm https://github.com/asheroto/UniFiOSServer-AutoStart/releases/latest/download/Enable-UniFiOSAutoStart.ps1 | iex
+```
+
+**Method 3** - download and run locally. Download [Enable-UniFiOSAutoStart.ps1](https://github.com/asheroto/UniFiOSServer-AutoStart/releases/latest/download/Enable-UniFiOSAutoStart.ps1) from [Releases](https://github.com/asheroto/UniFiOSServer-AutoStart/releases), then run:
 
 ```powershell
 .\Enable-UniFiOSAutoStart.ps1
