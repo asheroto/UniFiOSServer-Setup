@@ -14,39 +14,25 @@ The script does the following:
 
 - Verifies the OS is supported (Windows 10 1903+, Windows 11, or Windows Server 2022+)
 - Warns if the old UniFi Network Application is running, and prompts you to export your settings before continuing
-- Checks that WSL2 is installed -- if not, provides instructions to install it and exits
 - Detects if running in a Hyper-V, VMware, or VirtualBox VM and warns if nested virtualization is not enabled, providing the host-side command to enable it
-- Creates a local service account (`svc_unifi`), or resets its password if it already exists
-- Grants the account the **Log On as a Batch Job** right
-- Registers a scheduled task to launch UniFi OS Server 30 seconds after boot under that account
-- Optionally downloads and launches the UniFi OS Server installer automatically (`-Install`)
+- Creates a local service account (`svc_unifi`), grants it the **Log On as a Batch Job** right, and registers a scheduled task to launch UniFi OS Server 30 seconds after boot
+- Downloads and installs UniFi OS Server (~1.3 GB) with WSL2 via `-Step2`
+- Supports existing installations via `-TaskOnly` -- creates the service account and task without reinstalling
 
 ## Quick Run
 
-Open an elevated PowerShell session (Run as Administrator). There are three ways to run the script: using `irm` with the short URL, using `irm` with the full release URL, or downloading and running locally.
+Open an elevated PowerShell session (Run as Administrator). There are two ways to run the script: using the short URL one-liner, or downloading and running locally.
 
-**Method 1** - `irm` short URL (recommended):
-
-```powershell
-irm asheroto.com/UniFiOS | iex
-```
-
-**Method 2** - `irm` full release URL:
+**Method 1** - short URL one-liner (no download required, supports parameters):
 
 ```powershell
-irm https://github.com/asheroto/UniFiOSServer-Setup/releases/latest/download/Setup-UniFiOSServer.ps1 | iex
+&([ScriptBlock]::Create((irm asheroto.com/unifios)))
 ```
 
-**Method 3** - download and run locally. Download [Setup-UniFiOSServer.ps1](https://github.com/asheroto/UniFiOSServer-Setup/releases/latest/download/Setup-UniFiOSServer.ps1) from [Releases](https://github.com/asheroto/UniFiOSServer-Setup/releases), then run:
+**Method 2** - download and run locally. Download [Setup-UniFiOSServer.ps1](https://github.com/asheroto/UniFiOSServer-Setup/releases/latest/download/Setup-UniFiOSServer.ps1) from [Releases](https://github.com/asheroto/UniFiOSServer-Setup/releases), then run:
 
 ```powershell
 .\Setup-UniFiOSServer.ps1
-```
-
-To also download and install UniFi OS Server automatically, add `-Install`:
-
-```powershell
-.\Setup-UniFiOSServer.ps1 -Install
 ```
 
 ## Prerequisites
@@ -56,27 +42,69 @@ To also download and install UniFi OS Server automatically, add `-Install`:
 
 ## Usage
 
-Run the script in an elevated PowerShell session -- no prompts required. When it finishes, follow the **Next Steps** printed to the console:
+For best results, run this before installing UniFi OS Server. If it is already installed, run with `-TaskOnly` instead.
 
-1. Log off the current session
-2. Log on as `.\svc_unifi` using the password shown -- **save this password**, it is not stored anywhere. `svc_unifi` is a **local account**, not a domain account. Use `.\svc_unifi` (with the dot-backslash) at the login screen, not `svc_unifi` alone
-3. Download and install UniFi OS Server for **all users** -- when the installer asks where to install, choose `Program Files` (not `AppData`). Download from: https://www.ui.com/download
-4. Launch UniFi OS Server and complete initial setup
-5. Log off `svc_unifi`
+### Step 1 - Run setup as Administrator
 
-The scheduled task will start UniFi OS Server under `svc_unifi` automatically on all future reboots.
+```powershell
+&([ScriptBlock]::Create((irm asheroto.com/unifios))) -Step1
+# or
+.\Setup-UniFiOSServer.ps1 -Step1
+```
+
+Creates `svc_unifi`, grants it the required rights, and registers the startup task (disabled). **Save the password printed to the console** - it is not stored anywhere.
+
+### Step 2 - Log on as svc_unifi
+
+Log off and log on as `svc_unifi` using the password shown. Use `.\svc_unifi` (dot-backslash) at the login screen - it is a local account.
+
+### Step 3 - Install UniFi OS Server
+
+```powershell
+&([ScriptBlock]::Create((irm asheroto.com/unifios))) -Step2
+# or
+.\Setup-UniFiOSServer.ps1 -Step2
+```
+
+Downloads and installs UniFi OS Server (~1.3 GB) with WSL2. Click OK on any WSL2 dialogs that appear. Alternatively, install manually from https://www.ui.com/download - choose **all users** and `Program Files`, not `AppData`.
+
+### Step 4 - Complete initial setup
+
+Launch UniFi OS Server and finish the initial configuration while logged in as `svc_unifi`. Do not launch it from any other account.
+
+A dialog may appear asking to install WSL2 -- click OK and allow it to complete. If prompted to reboot, click OK, then run `-Step3`.
+
+### Step 5 - Enable the startup task
+
+Run as Administrator:
+
+```powershell
+&([ScriptBlock]::Create((irm asheroto.com/unifios))) -Step3
+# or
+.\Setup-UniFiOSServer.ps1 -Step3
+```
+
+UniFi OS Server will start automatically under `svc_unifi` on the next boot. Complete any remaining setup steps via the web interface at `https://localhost:11443`, or via the UniFi cloud console if the device has been attached.
 
 ## Parameters
 
-| Parameter  | Description |
-|------------|-------------|
-| `-Install` | Fetch the latest UniFi OS Server release from Ubiquiti, download it (~1.3 GB), and launch the installer automatically. |
-| `-Version` | Print the script version and exit. |
-| `-Help`    | Show full help and exit. |
+| Parameter             | Description |
+|-----------------------|-------------|
+| `-Step1`              | Create the service account and register the startup task. Run as Administrator. |
+| `-Step2`              | Download and install UniFi OS Server (~1.3 GB). Must be run as `svc_unifi`. |
+| `-Step3`              | Enable the startup task after initial setup is complete. Run as Administrator. |
+| `-TaskOnly`           | If UniFi OS Server is already installed, creates the service account and startup task only (task is left enabled). Use with `-Username` to specify an existing account. |
+| `-Interactive`        | Used with `-Step2`. Launches the installer UI instead of running silently. |
+| `-Username <string>`  | Use an existing account instead of creating `svc_unifi`. The account's password will not be reset -- you will be prompted for it. |
+| `-SetPassword`        | Prompt for a custom password for the service account instead of generating one randomly. |
+| `-Version`            | Print the script version and exit. |
+| `-Help`               | Show full help and exit. |
 
 ## Notes
 
-- If `svc_unifi` already exists, the script resets its password
+- `svc_unifi` is added to the **Users** and **Administrators** groups -- both are required for interactive login and for UniFi OS Server to function correctly (privileged ports, WSL2, and the scheduled task's Run Level Highest setting)
+- If `svc_unifi` already exists, the script resets its password (unless `-Username` specifies a different account)
 - If the scheduled task already exists, it is removed and re-created
-- The password is randomly generated (32 characters) and passed directly to Task Scheduler -- **it is not saved anywhere**. Copy it from the console output before closing the window
+- The password is randomly generated (16 characters) and passed directly to Task Scheduler -- **it is not saved anywhere**. Copy it from the console output before closing the window
 - Running under SYSTEM will launch the process but UniFi OS Server will not function correctly; it requires the user context it was configured in
+- Do not launch UniFi OS Server from any account other than `svc_unifi` -- it relies on that specific user profile for its WSL2 container and launching it under a different account may corrupt the container
