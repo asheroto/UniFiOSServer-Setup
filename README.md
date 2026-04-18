@@ -93,9 +93,8 @@ UniFi OS Server will start automatically under `svc_unifi` on the next boot. Com
 | `-Step1`              | Create the service account and register the startup task. Run as Administrator. |
 | `-Step2`              | Download and install UniFi OS Server (~1.3 GB). Must be run as `svc_unifi`. |
 | `-Step3`              | Enable the startup task after initial setup is complete. Run as Administrator. |
-| `-TaskOnly`           | If UniFi OS Server is already installed, creates the service account and startup task only (task is left enabled). Use with `-Username` to specify an existing account. |
+| `-TaskOnly`           | If UniFi OS Server is already installed, creates the service account and startup task only (task is left enabled). You will be prompted for credentials. |
 | `-Interactive`        | Used with `-Step2`. Launches the installer UI instead of running silently. |
-| `-Username <string>`  | Use an existing account instead of creating `svc_unifi`. The account's password will not be reset -- you will be prompted for it. |
 | `-SetPassword`        | Prompt for a custom password for the service account instead of generating one randomly. |
 | `-Version`            | Print the script version and exit. |
 | `-Help`               | Show full help and exit. |
@@ -103,7 +102,7 @@ UniFi OS Server will start automatically under `svc_unifi` on the next boot. Com
 ## Notes
 
 - `svc_unifi` is added to the **Users** and **Administrators** groups -- both are required for interactive login and for UniFi OS Server to function correctly (privileged ports, WSL2, and the scheduled task's Run Level Highest setting)
-- If `svc_unifi` already exists, the script resets its password (unless `-Username` specifies a different account)
+- If `svc_unifi` already exists, you will be prompted for the existing password. Use `-SetPassword` to reset it instead.
 - If the scheduled task already exists, it is removed and re-created
 - The password is randomly generated (16 characters) and passed directly to Task Scheduler -- **it is not saved anywhere**. Copy it from the console output before closing the window
 - Running under SYSTEM will launch the process but UniFi OS Server will not function correctly; it requires the user context it was configured in

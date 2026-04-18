@@ -43,13 +43,12 @@ param (
     [switch]$Interactive,
     [switch]$Step3,
     [switch]$TaskOnly,
-    [string]$Username = 'svc_unifi',
     [switch]$SetPassword
 )
 
 # Version
 $CurrentVersion = '2.0.0'
-$SvcUser        = $Username
+$SvcUser        = 'svc_unifi'
 $TaskName       = 'UniFi OS Server'
 
 # Display version if -Version is specified
@@ -117,6 +116,25 @@ if ($PSBoundParameters.ContainsKey('Verbose') -and $PSBoundParameters['Verbose']
 
 Write-Host ""
 Write-Host "  Setup-UniFiOSServer v$CurrentVersion" -ForegroundColor Cyan
+
+$currentIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+if ($currentIdentity.IsSystem) {
+    Write-Host ""
+    Write-Host "  ERROR: This script cannot be run as SYSTEM." -ForegroundColor Red
+    Write-Host "  UniFi OS Server requires a real user context to function correctly." -ForegroundColor White
+    Write-Host "  Run this script from an interactive session as a local Administrator." -ForegroundColor White
+    Write-Host ""
+    exit 1
+}
+
+if (-not [Environment]::UserInteractive) {
+    Write-Host ""
+    Write-Host "  ERROR: This script must be run from an interactive session." -ForegroundColor Red
+    Write-Host "  UniFi OS Server requires user interaction during setup and will not" -ForegroundColor White
+    Write-Host "  function correctly when run from a non-interactive context." -ForegroundColor White
+    Write-Host ""
+    exit 1
+}
 
 if ($Step3) {
     $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
@@ -278,7 +296,7 @@ if (-not $Step1 -and -not $TaskOnly) {
     Write-Host ""
     Write-Host "    -TaskOnly  If UniFi OS Server is already installed, use this to" -ForegroundColor Cyan
     Write-Host "               create the service account and startup task only." -ForegroundColor Cyan
-    Write-Host "               Specify the account with -Username." -ForegroundColor Gray
+    Write-Host "               You will be prompted for credentials." -ForegroundColor Gray
     Write-Host ""
     Write-Host "    -SetPassword  Prompt for a custom password for the service account." -ForegroundColor Cyan
     Write-Host "                  If omitted, a random password is generated." -ForegroundColor Gray
@@ -337,19 +355,20 @@ $vmInfo = Get-HypervisorInfo
 Write-Section "Configuration"
 $ExePath  = "C:\Program Files\UniFi OS Server\UniFi OS Server.exe"
 
-Write-Section "Create Service Account"
-if ($Username -ne 'svc_unifi') {
-    # Existing account provided - prompt for its password without resetting it
-    Write-Host "Using existing account: $SvcUser"
-    $secCred = Get-Credential -UserName "$env:COMPUTERNAME\$SvcUser" -Message "Enter the password for $SvcUser"
+if ($TaskOnly) { Write-Section "Service Account Credentials" } else { Write-Section "Create Service Account" }
+if ($TaskOnly) {
+    # Prompt for credentials of the existing account without resetting its password
+    $secCred = Get-Credential -Message "Enter credentials for the account that will run UniFi OS Server"
     if (-not $secCred) {
         Write-Host ""
         Write-Host "  ERROR: No credentials provided. Exiting." -ForegroundColor Red
         exit 1
     }
-    $secPwd  = $secCred.Password
+    $SvcUser  = $secCred.UserName -replace '^.*\\', ''
+    $secPwd   = $secCred.Password
     $password = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
         [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secPwd))
+    Write-Host "Using existing account: $SvcUser"
 } else {
     if ($SetPassword) {
         $secCred = Get-Credential -UserName "$env:COMPUTERNAME\$SvcUser" -Message "Enter the password to set for $SvcUser"
@@ -381,10 +400,21 @@ if ($Username -ne 'svc_unifi') {
                       -UserMayNotChangePassword `
                       -AccountNeverExpires `
                       -Description "UniFi OS Server service account" | Out-Null
-    } else {
-        Write-Host "User $SvcUser already exists - resetting password"
+    } elseif ($SetPassword) {
+        Write-Host "Resetting password for $SvcUser"
         Set-LocalUser -Name $SvcUser -Password $secPwd
         Start-Sleep -Seconds 2
+    } else {
+        Write-Host "User $SvcUser already exists - enter the existing password."
+        $secCred = Get-Credential -UserName "$env:COMPUTERNAME\$SvcUser" -Message "Enter the existing password for $SvcUser"
+        if (-not $secCred) {
+            Write-Host ""
+            Write-Host "  ERROR: No credentials provided. Exiting." -ForegroundColor Red
+            exit 1
+        }
+        $secPwd  = $secCred.Password
+        $password = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
+            [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secPwd))
     }
 }
 
@@ -523,70 +553,70 @@ Write-Host $SvcUser -NoNewline -ForegroundColor Cyan
 Write-Host "." -ForegroundColor Green
 
 Write-Host ""
-Write-Host "  =========  NEXT STEPS  ========================================" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "  Before the scheduled task can run, UniFi OS Server must be" -ForegroundColor White
-Write-Host "  launched and initially configured under the service account." -ForegroundColor White
-Write-Host ""
+if ($TaskOnly) {
+    Write-Host "  Setup complete. UniFi OS Server will start automatically under" -ForegroundColor Green
+    Write-Host "  $SvcUser on the next boot." -ForegroundColor Green
+    Write-Host ""
+} else {
+    Write-Host "  =========  NEXT STEPS  ========================================" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Before the scheduled task can run, UniFi OS Server must be" -ForegroundColor White
+    Write-Host "  launched and initially configured under the service account." -ForegroundColor White
+    Write-Host ""
 
-$step = 1
-Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
-Write-Host "Log off the current session." -ForegroundColor White
-Write-Host ""
-$step++
+    $step = 1
+    Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
+    Write-Host "Log off the current session." -ForegroundColor White
+    Write-Host ""
+    $step++
 
-Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
-Write-Host "Log on as : " -NoNewline -ForegroundColor White
-Write-Host "$env:COMPUTERNAME\$SvcUser" -ForegroundColor Cyan
-if ($Username -eq 'svc_unifi') {
+    Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
+    Write-Host "Log on as : " -NoNewline -ForegroundColor White
+    Write-Host "$env:COMPUTERNAME\$SvcUser" -ForegroundColor Cyan
     Write-Host "     Password  : " -NoNewline -ForegroundColor White
     Write-Host $password -ForegroundColor Cyan
-}
-Write-Host ""
-$step++
-
-Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
-Write-Host "Install UniFi OS Server." -ForegroundColor White
-Write-Host "     Option A - Run this script with " -NoNewline -ForegroundColor White
-Write-Host "-Step2" -NoNewline -ForegroundColor Cyan
-Write-Host " to download and install automatically." -ForegroundColor White
-Write-Host "     Option B - Download manually from " -NoNewline -ForegroundColor White
-Write-Host "https://www.ui.com/download" -NoNewline -ForegroundColor Cyan
-Write-Host " -- install for " -NoNewline -ForegroundColor White
-Write-Host "all users" -NoNewline -ForegroundColor Cyan
-Write-Host ", choose " -NoNewline -ForegroundColor White
-Write-Host "Program Files" -NoNewline -ForegroundColor Cyan
-Write-Host ", not AppData." -ForegroundColor White
-Write-Host ""
-$step++
-
-if ($vmInfo -and $vmInfo.NestedVirtMissing) {
-    Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
-    Write-Host "Enable nested virtualization before continuing." -ForegroundColor Yellow
     Write-Host ""
-    Write-NestedVirtWarning -Hypervisor $vmInfo.Hypervisor -Indent '     '
     $step++
-}
 
-Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
-Write-Host "Launch UniFi OS Server and complete initial setup." -ForegroundColor White
-Write-Host ""
-$step++
+    Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
+    Write-Host "Install UniFi OS Server." -ForegroundColor White
+    Write-Host "     Option A - Run this script with " -NoNewline -ForegroundColor White
+    Write-Host "-Step2" -NoNewline -ForegroundColor Cyan
+    Write-Host " to download and install automatically." -ForegroundColor White
+    Write-Host "     Option B - Download manually from " -NoNewline -ForegroundColor White
+    Write-Host "https://www.ui.com/download" -NoNewline -ForegroundColor Cyan
+    Write-Host " -- install for " -NoNewline -ForegroundColor White
+    Write-Host "all users" -NoNewline -ForegroundColor Cyan
+    Write-Host ", choose " -NoNewline -ForegroundColor White
+    Write-Host "Program Files" -NoNewline -ForegroundColor Cyan
+    Write-Host ", not AppData." -ForegroundColor White
+    Write-Host ""
+    $step++
 
-Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
-Write-Host "Log off $SvcUser." -ForegroundColor White
-Write-Host ""
-Write-Host "  The scheduled task will start UniFi OS Server under $SvcUser" -ForegroundColor Gray
-Write-Host "  automatically on all future reboots." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  ================================================================" -ForegroundColor Yellow
-Write-Host ""
+    if ($vmInfo -and $vmInfo.NestedVirtMissing) {
+        Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
+        Write-Host "Enable nested virtualization before continuing." -ForegroundColor Yellow
+        Write-Host ""
+        Write-NestedVirtWarning -Hypervisor $vmInfo.Hypervisor -Indent '     '
+        $step++
+    }
 
+    Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
+    Write-Host "Launch UniFi OS Server and complete initial setup." -ForegroundColor White
+    Write-Host ""
+    $step++
 
-Write-Host "  ================================================================" -ForegroundColor Yellow
-Write-Host "  IMPORTANT: Please read all steps above before proceeding." -ForegroundColor Yellow
-if ($Username -eq 'svc_unifi') {
+    Write-Host "  $step. " -NoNewline -ForegroundColor Yellow
+    Write-Host "Log off $SvcUser." -ForegroundColor White
+    Write-Host ""
+    Write-Host "  The scheduled task will start UniFi OS Server under $SvcUser" -ForegroundColor Gray
+    Write-Host "  automatically on all future reboots." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  ================================================================" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  ================================================================" -ForegroundColor Yellow
+    Write-Host "  IMPORTANT: Please read all steps above before proceeding." -ForegroundColor Yellow
     Write-Host "             Save the $SvcUser password -- it is not stored anywhere." -ForegroundColor Yellow
+    Write-Host "  ================================================================" -ForegroundColor Yellow
+    Write-Host ""
 }
-Write-Host "  ================================================================" -ForegroundColor Yellow
-Write-Host ""
