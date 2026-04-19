@@ -129,8 +129,8 @@ UniFi OS Server will start automatically under `svc_unifi` on the next boot. Com
 | `-Step2`              | Download and install UniFi OS Server (~1.3 GB). Must be run as `svc_unifi`. |
 | `-Step3`              | Enable the startup task after initial setup is complete. Run as Administrator. |
 | `-TaskOnly`           | If UniFi OS Server is already installed, creates the service account and startup task only (task is left enabled). You will be prompted for credentials. |
-| `-Interactive`        | Used with `-Step2`. Launches the installer UI instead of running silently. |
 | `-SetPassword`        | Prompt for a custom password for the service account instead of generating one randomly. |
+| `-Interactive`        | Used with `-Step2`. Launches the installer UI instead of running silently. |
 | `-Version`            | Print the script version and exit. |
 | `-Help`               | Show full help and exit. |
 
