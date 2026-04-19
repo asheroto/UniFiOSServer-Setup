@@ -1,5 +1,4 @@
-<img width="1481" height="645" alt="2026-04-18_20-38-51_4039" src="https://github.com/user-attachments/assets/106ed97e-092c-41d7-93cc-e2056962da54" />
-
+![UniFiOSServer-Setup screenshot](https://github.com/user-attachments/assets/106ed97e-092c-41d7-93cc-e2056962da54)
 
 [![GitHub Downloads - All Releases](https://img.shields.io/github/downloads/asheroto/UniFiOSServer-Setup/total?label=release%20downloads)](https://github.com/asheroto/UniFiOSServer-Setup/releases)
 [![Release](https://img.shields.io/github/v/release/asheroto/UniFiOSServer-Setup)](https://github.com/asheroto/UniFiOSServer-Setup/releases)
