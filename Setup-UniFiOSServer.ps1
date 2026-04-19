@@ -14,7 +14,7 @@
 .PROJECTURI https://github.com/asheroto/UniFiOSServer-Setup
 
 .RELEASENOTES
-[Version 2.0.3] - Replace #Requires -RunAsAdministrator with a manual admin check inside Main so the window stays open on error instead of closing immediately.
+[Version 2.0.3] - Replace #Requires -RunAsAdministrator with a manual admin check inside Main so the window stays open on error instead of closing immediately. Clarify Step 3 prompt to explain it should be run after launching UniFi OS Server, logging in, and completing first-time configuration.
 [Version 2.0.2] - Wrap script body in Main function; use return instead of exit so the PowerShell window stays open. Remove Read-Host pauses.
 [Version 2.0.1] - Pause before exit on usage so terminal window stays open.
 [Version 2.0.0] - Add -Step1/-Step2/-Step3 flow. Add -TaskOnly for setups where UniFi OS Server is already installed. Add -Username to override the service account name. Add -Interactive for non-silent installer UI. Startup task is created disabled and enabled via -Step3. Moved desktop shortcut to svc_unifi after install. Password limited to 3 special characters. svc_unifi added to Users and Administrators groups. Fix re-run error when LsaPolicy type already exists. Nested virtualization check non-blocking with warning at end. Added section headers to output.
@@ -213,7 +213,7 @@ if ($Step2) {
             Write-Host "Installer already downloaded, skipping download." -ForegroundColor White
         } else {
             Write-Host "Downloading UniFi OS Server (~1.3 GB)..." -ForegroundColor White
-            #Start-BitsTransfer -Source $dlUrl -Destination $installer
+            Start-BitsTransfer -Source $dlUrl -Destination $installer
         }
 
         $installerArgs = if ($Interactive) { @('/AllUsers') } else { @('/S', '/AllUsers') }
@@ -227,16 +227,15 @@ if ($Step2) {
             Write-Host ""
         }
         Write-Host "Installing... this may take several minutes." -ForegroundColor White
-        #$proc = Start-Process -FilePath $installer -ArgumentList $installerArgs -PassThru
+        $proc = Start-Process -FilePath $installer -ArgumentList $installerArgs -PassThru
         $elapsed = 0
-        # while (-not $proc.HasExited) {
-        #     Start-Sleep -Seconds 5
-        #     $elapsed += 5
-        #     Write-Host "  Still installing... ($elapsed sec elapsed)" -ForegroundColor Gray
-        # }
+        while (-not $proc.HasExited) {
+            Start-Sleep -Seconds 5
+            $elapsed += 5
+            Write-Host "  Still installing... ($elapsed sec elapsed)" -ForegroundColor Gray
+        }
 
-        if (0 -eq 0) {
-        # if ($proc.ExitCode -eq 0) {
+        if ($proc.ExitCode -eq 0) {
             Remove-Item $installer -Force -ErrorAction SilentlyContinue
 
             $publicShortcut  = Join-Path $env:PUBLIC "Desktop\UniFi OS Server.lnk"
@@ -274,7 +273,8 @@ if ($Step2) {
             $istep++
 
             Write-Host "  $istep. " -NoNewline -ForegroundColor Yellow
-            Write-Host "Once initial setup is complete, enable the startup task:" -ForegroundColor White
+            Write-Host "Once you have successfully launched UniFi OS Server, logged in," -ForegroundColor White
+            Write-Host "     and completed the first-time configuration, enable the startup task:" -ForegroundColor White
             Write-Host ""
             Write-Host "     .\Setup-UniFiOSServer.ps1 -Step3" -ForegroundColor Cyan
             Write-Host ""
@@ -306,7 +306,8 @@ if (-not $Step1 -and -not $TaskOnly) {
     Write-Host "    -Step2     Download and install UniFi OS Server." -ForegroundColor Cyan
     Write-Host "               Run as $SvcUser." -ForegroundColor Gray
     Write-Host ""
-    Write-Host "    -Step3     Enable the startup task after initial setup is complete." -ForegroundColor Cyan
+    Write-Host "    -Step3     Enable the startup task once you have launched UniFi OS Server," -ForegroundColor Cyan
+    Write-Host "               logged in, and completed first-time configuration." -ForegroundColor Cyan
     Write-Host "               Run as Administrator." -ForegroundColor Gray
     Write-Host ""
     Write-Host "    -TaskOnly  If UniFi OS Server is already installed, use this to" -ForegroundColor Cyan
