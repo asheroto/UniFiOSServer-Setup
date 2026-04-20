@@ -59,27 +59,27 @@ For best results, run this before installing UniFi OS Server. If it is already i
 
 Open an elevated PowerShell session (Run as Administrator) and run each step in order.
 
-**Step 1** — Create the service account and register the startup task (run as Administrator):
+**Step 1** - Create the service account and register the startup task (run as Administrator):
 
 ```powershell
 &([ScriptBlock]::Create((irm asheroto.com/unifios))) -Step1
 ```
 
-Creates `svc_unifi`, grants it the required rights, and registers the startup task (disabled). **Save the password printed to the console** — it is not stored anywhere.
+Creates `svc_unifi`, grants it the required rights, and registers the startup task (disabled). **Save the password printed to the console** - it is not stored anywhere.
 
-Then log off and log on as `svc_unifi` using the password shown. Use `.\svc_unifi` (dot-backslash) at the login screen — it is a local account.
+Then log off and log on as `svc_unifi` using the password shown. Use `.\svc_unifi` (dot-backslash) at the login screen - it is a local account.
 
-**Step 2** — Install UniFi OS Server (run as `svc_unifi`):
+**Step 2** - Install UniFi OS Server (run as `svc_unifi`):
 
 ```powershell
 &([ScriptBlock]::Create((irm asheroto.com/unifios))) -Step2
 ```
 
-Downloads and installs UniFi OS Server (~1.3 GB) with WSL2. Click OK on any WSL2 dialogs that appear. Alternatively, install manually from https://www.ui.com/download — choose **all users** and `Program Files`, not `AppData`.
+Downloads and installs UniFi OS Server (~1.3 GB) with WSL2. Click OK on any WSL2 dialogs that appear. Alternatively, install manually from https://www.ui.com/download - choose **all users** and `Program Files`, not `AppData`.
 
-Then launch UniFi OS Server from the desktop shortcut and complete initial configuration while still logged in as `svc_unifi`. Do not launch it from any other account. A dialog may appear to complete the WSL2 installation — click OK and allow it to finish. If prompted to reboot, do so before continuing.
+Then launch UniFi OS Server from the desktop shortcut and complete initial configuration while still logged in as `svc_unifi`. Do not launch it from any other account. A dialog may appear to complete the WSL2 installation - click OK and allow it to finish. If prompted to reboot, do so before continuing.
 
-**Step 3** — Enable the startup task (run as Administrator):
+**Step 3** - Enable the startup task (run as Administrator):
 
 ```powershell
 &([ScriptBlock]::Create((irm asheroto.com/unifios))) -Step3
@@ -92,27 +92,27 @@ Run this after you have launched UniFi OS Server, logged in, and completed first
 
 Download [Setup-UniFiOSServer.ps1](https://github.com/asheroto/UniFiOSServer-Setup/releases/latest/download/Setup-UniFiOSServer.ps1) from [Releases](https://github.com/asheroto/UniFiOSServer-Setup/releases), then open an elevated PowerShell session (Run as Administrator) and run each step in order.
 
-**Step 1** — Create the service account and register the startup task (run as Administrator):
+**Step 1** - Create the service account and register the startup task (run as Administrator):
 
 ```powershell
 .\Setup-UniFiOSServer.ps1 -Step1
 ```
 
-Creates `svc_unifi`, grants it the required rights, and registers the startup task (disabled). **Save the password printed to the console** — it is not stored anywhere.
+Creates `svc_unifi`, grants it the required rights, and registers the startup task (disabled). **Save the password printed to the console** - it is not stored anywhere.
 
-Then log off and log on as `svc_unifi` using the password shown. Use `.\svc_unifi` (dot-backslash) at the login screen — it is a local account.
+Then log off and log on as `svc_unifi` using the password shown. Use `.\svc_unifi` (dot-backslash) at the login screen - it is a local account.
 
-**Step 2** — Install UniFi OS Server (run as `svc_unifi`):
+**Step 2** - Install UniFi OS Server (run as `svc_unifi`):
 
 ```powershell
 .\Setup-UniFiOSServer.ps1 -Step2
 ```
 
-Downloads and installs UniFi OS Server (~1.3 GB) with WSL2. Click OK on any WSL2 dialogs that appear. Alternatively, install manually from https://www.ui.com/download — choose **all users** and `Program Files`, not `AppData`.
+Downloads and installs UniFi OS Server (~1.3 GB) with WSL2. Click OK on any WSL2 dialogs that appear. Alternatively, install manually from https://www.ui.com/download - choose **all users** and `Program Files`, not `AppData`.
 
-Then launch UniFi OS Server from the desktop shortcut and complete initial configuration while still logged in as `svc_unifi`. Do not launch it from any other account. A dialog may appear to complete the WSL2 installation — click OK and allow it to finish. If prompted to reboot, do so before continuing.
+Then launch UniFi OS Server from the desktop shortcut and complete initial configuration while still logged in as `svc_unifi`. Do not launch it from any other account. A dialog may appear to complete the WSL2 installation - click OK and allow it to finish. If prompted to reboot, do so before continuing.
 
-**Step 3** — Enable the startup task (run as Administrator):
+**Step 3** - Enable the startup task (run as Administrator):
 
 ```powershell
 .\Setup-UniFiOSServer.ps1 -Step3
