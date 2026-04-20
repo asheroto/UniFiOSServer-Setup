@@ -87,9 +87,8 @@ Then launch UniFi OS Server from the desktop shortcut and complete initial confi
 
 Run this after you have launched UniFi OS Server, logged in, and completed first-time configuration. UniFi OS Server will start automatically under `svc_unifi` on every subsequent boot. Complete any remaining setup via the web interface at `https://localhost:11443`, or via the UniFi cloud console if the device has been attached.
 
----
-
-### Local
+<details>
+<summary>Local</summary>
 
 Download [Setup-UniFiOSServer.ps1](https://github.com/asheroto/UniFiOSServer-Setup/releases/latest/download/Setup-UniFiOSServer.ps1) from [Releases](https://github.com/asheroto/UniFiOSServer-Setup/releases), then open an elevated PowerShell session (Run as Administrator) and run each step in order.
 
@@ -120,6 +119,8 @@ Then launch UniFi OS Server from the desktop shortcut and complete initial confi
 ```
 
 Run this after you have launched UniFi OS Server, logged in, and completed first-time configuration. UniFi OS Server will start automatically under `svc_unifi` on every subsequent boot. Complete any remaining setup via the web interface at `https://localhost:11443`, or via the UniFi cloud console if the device has been attached.
+
+</details>
 
 ## Parameters
 
