@@ -10,6 +10,9 @@
 
 # Setup UniFi OS Server on Windows
 
+> [!NOTE]
+> While Windows is a supported platform for UniFi OS Server, Docker updates or other issues can occasionally prevent the service from starting as expected. If the system needs to remain available at all times without requiring manual intervention or troubleshooting after updates, consider deploying UniFi OS Server in a Linux virtual machine using [this installation script](https://gist.github.com/asheroto/7ff25bb7d1e64fb237095a61e3184713).
+
 [UniFi OS Server](https://www.ui.com/download) is Ubiquiti's self-hosted controller platform, replacing the legacy UniFi Network Application. It runs UniFi OS in a WSL2 container on Windows, giving you the same experience as a physical UniFi console (such as a Dream Machine or Cloud Gateway) without dedicated hardware.
 
 Running it on Windows requires a bit of setup: unlike Linux or Docker, where it runs as a system service under a dedicated account, Windows ties the WSL2 environment to the user profile it was first configured in. That means it must always launch as that same user -- otherwise the container won't start correctly.
